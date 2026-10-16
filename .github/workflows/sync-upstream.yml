@@ -1,0 +1,48 @@
+name: Sync with Upstream
+
+on:
+  schedule:
+    # 每天 UTC 00:00 运行（北京时间 08:00）
+    # cron 用的是 UTC，想改成北京时间凌晨 4 点就写 '0 20 * * *'
+    - cron: "08 21 * * *"
+  workflow_dispatch: # 允许在 Actions 页面手动点击触发
+
+# 关键：给这个 Workflow 写入自己仓库的权限，否则 push 会被拒绝
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          # 如果你的默认分支是 master，这里改成 master
+          ref: main
+          fetch-depth: 0 # 拉取完整历史，避免 shallow clone 导致合并出错
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync with Upstream
+        env:
+          # 替换成上游仓库的 "用户名/仓库名"
+          UPSTREAM_REPO: "cunzhangcrypto/cunconvert"
+          # 要同步的分支名，上游是 master 就写 master
+          BRANCH_NAME: "main"
+        run: |
+          # 添加上游仓库（已存在则忽略报错）
+          git remote add upstream https://github.com/${UPSTREAM_REPO}.git || true
+
+          # 拉取上游最新提交
+          git fetch upstream
+
+          # 切到本地默认分支并合并上游
+          git checkout ${BRANCH_NAME}
+          git merge upstream/${BRANCH_NAME} --no-edit
+
+          # 推回自己的 Fork
+          git push https://x-access-token:*** secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ${BRANCH_NAME}
